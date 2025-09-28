@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-countdown-plugin",
+  "name": "Countdown Timer",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Insert Feishu-style countdown timers into your notes.",
+  "author": "",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "lib": ["ES2020"],
+    "allowSyntheticDefaultImports": true,
+    "types": ["obsidian", "node"],
+    "strict": true,
+    "noImplicitAny": false,
+    "useDefineForClassFields": false,
+    "resolveJsonModule": true,
+    "outDir": "out"
+  },
+  "include": ["main.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "out"]
+}

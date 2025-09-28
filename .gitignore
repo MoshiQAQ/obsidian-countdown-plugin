@@ -1,0 +1,20 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+main.js
+main.js.map
+out/
+
+# Logs and cache
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log
+.DS_Store
+
+# Editor configs (optional – remove if you want to version them)
+.vscode/
+.idea/
+
+# Misc
+*.zip

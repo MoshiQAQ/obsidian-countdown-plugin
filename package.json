@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-countdown-plugin",
+  "version": "0.1.0",
+  "description": "Obsidian plugin that inserts interactive countdown timers similar to Feishu Docs.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs --watch",
+    "build": "node esbuild.config.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "countdown",
+    "timer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "esbuild": "^0.20.2",
+    "obsidian": "^1.5.8",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
+  }
+}
