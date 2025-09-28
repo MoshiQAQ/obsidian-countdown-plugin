@@ -1,10 +1,10 @@
 {
-  "id": "obsidian-countdown-plugin",
-  "name": "Countdown Timer",
+  "id": "lark-style-countdown-timer",
+  "name": "Lark Style CountDown Timer",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
-  "description": "Insert Feishu-style countdown timers into your notes.",
-  "author": "",
-  "authorUrl": "",
+  "description": "Bring Feishu/Lark-style countdown blocks to Obsidian.",
+  "author": "Zhaoyang Yu",
+  "authorUrl": "https://zhaoyangyu.com/",
   "isDesktopOnly": false
 }
