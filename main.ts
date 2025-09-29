@@ -30,6 +30,8 @@ const COLOR_PRESETS = [
   "#98A2B3"
 ];
 
+const DYNAMIC_STYLE_ELEMENT_ID = "obsidian-countdown-dynamic-styles";
+
 const DEFAULT_SETTINGS: CountdownPluginSettings = {
   defaultLabel: "Countdown",
   defaultDurationMinutes: 60,
@@ -412,7 +414,8 @@ class CountdownView extends MarkdownRenderChild {
     this.containerEl = containerEl;
     this.target = options.target;
     this.label = options.label;
-    this.color = options.color;
+    const defaultColor = normaliseColor(this.plugin.settings.defaultColor) ?? DEFAULT_SETTINGS.defaultColor;
+    this.color = normaliseColor(options.color) ?? defaultColor;
     this.context = options.context;
     this.strings = options.strings;
     this.valueEls = this.setupDom(containerEl);
@@ -468,18 +471,21 @@ class CountdownView extends MarkdownRenderChild {
       COLOR_PRESETS.forEach((hex) => {
         const option = palette.createEl("button", { cls: "obsidian-countdown__color-option" });
         option.setAttr("type", "button");
-        option.setAttribute("aria-label", hex);
-        option.style.setProperty("--color", hex);
-        option.style.backgroundColor = hex;
-        option.dataset.color = hex;
-        if (colorsEqual(hex, this.color)) {
+        const presetColor = normaliseColor(hex);
+        const labelColor = presetColor ?? hex;
+        option.setAttribute("aria-label", labelColor);
+        if (presetColor) {
+          option.dataset.countdownColor = presetColor;
+          ensureColorOptionStyle(presetColor);
+        }
+        if (colorsEqual(labelColor, this.color)) {
           option.addClass("is-selected");
         }
         option.addEventListener("mousedown", (evt) => evt.stopPropagation());
         option.onclick = async (evt) => {
           evt.preventDefault();
           evt.stopPropagation();
-          await this.setColor(hex);
+          await this.setColor(labelColor);
           this.closeColorPopover();
         };
       });
@@ -558,10 +564,9 @@ class CountdownView extends MarkdownRenderChild {
     }
     const options = Array.from(this.colorPopover.querySelectorAll<HTMLElement>(".obsidian-countdown__color-option"));
     options.forEach((option) => {
-      const dataColor = option.dataset.color ?? option.style.getPropertyValue("--color");
-      const hex = normaliseColor(dataColor) ?? "";
+      const hex = normaliseColor(option.dataset.countdownColor) ?? "";
       if (hex) {
-        option.style.backgroundColor = hex;
+        ensureColorOptionStyle(hex);
       }
       if (colorsEqual(hex, this.color)) {
         option.addClass("is-selected");
@@ -572,23 +577,33 @@ class CountdownView extends MarkdownRenderChild {
   }
 
   private async setColor(color: string) {
-    if (!this.context || colorsEqual(color, this.color)) {
+    if (!this.context) {
+      return;
+    }
+
+    const normalised = normaliseColor(color);
+    if (!normalised || colorsEqual(normalised, this.color)) {
       return;
     }
 
     await this.plugin.updateCountdownBlock(this.context, {
       target: this.target,
       label: this.label,
-      color
+      color: normalised
     });
 
-    this.color = color;
-    this.applyColor(color);
+    this.color = normalised;
+    this.applyColor(normalised);
     this.updateColorSelection();
   }
 
   private applyColor(color: string) {
-    this.containerEl.style.setProperty("--countdown-color", color);
+    const normalised = normaliseColor(color);
+    if (!normalised) {
+      return;
+    }
+    ensureContainerColorStyle(normalised);
+    this.containerEl.setAttribute("data-countdown-color", normalised);
   }
 
   private async openEditModal() {
@@ -736,6 +751,70 @@ function colorsEqual(a: string, b: string) {
   return normaliseColor(a) === normaliseColor(b);
 }
 
+let dynamicStyleElement: HTMLStyleElement | null = null;
+const dynamicColorRules = new Set<string>();
+
+function ensureDynamicStyleElement(): HTMLStyleElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (dynamicStyleElement && dynamicStyleElement.isConnected) {
+    return dynamicStyleElement;
+  }
+
+  dynamicStyleElement = document.head.querySelector<HTMLStyleElement>(`#${DYNAMIC_STYLE_ELEMENT_ID}`);
+  if (!dynamicStyleElement) {
+    dynamicStyleElement = document.createElement("style");
+    dynamicStyleElement.id = DYNAMIC_STYLE_ELEMENT_ID;
+    document.head.appendChild(dynamicStyleElement);
+  }
+
+  return dynamicStyleElement;
+}
+
+function ensureContainerColorStyle(color: string) {
+  const normalised = normaliseColor(color);
+  if (!normalised) {
+    return;
+  }
+
+  const styleEl = ensureDynamicStyleElement();
+  if (!styleEl) {
+    return;
+  }
+
+  const key = `container:${normalised}`;
+  if (dynamicColorRules.has(key)) {
+    return;
+  }
+
+  styleEl.appendChild(document.createTextNode(`.obsidian-countdown__container[data-countdown-color="${normalised}"]{--countdown-color:${normalised};}`));
+  dynamicColorRules.add(key);
+}
+
+function ensureColorOptionStyle(color: string) {
+  const normalised = normaliseColor(color);
+  if (!normalised) {
+    return;
+  }
+
+  const styleEl = ensureDynamicStyleElement();
+  if (!styleEl) {
+    return;
+  }
+
+  const key = `option:${normalised}`;
+  if (dynamicColorRules.has(key)) {
+    return;
+  }
+
+  styleEl.appendChild(
+    document.createTextNode(`.obsidian-countdown__color-option[data-countdown-color="${normalised}"]{--countdown-option-color:${normalised};}`)
+  );
+  dynamicColorRules.add(key);
+}
+
 function parseTargetDate(input: string | undefined): Date | null {
   if (!input) {
     return null;
@@ -765,17 +844,47 @@ function pad(value: number) {
 }
 
 function getTranslations(app: App): Translations {
-  const localeCandidate =
-    (app as any)?.locale ??
-    (app as any)?.lang ??
-    (app.vault as any)?.getConfig?.("locale") ??
-    (typeof window !== "undefined" && window.localStorage?.getItem("language")) ??
-    (typeof window !== "undefined" && window.localStorage?.getItem("lang")) ??
-    (typeof navigator !== "undefined" ? navigator.language : "en");
+  const storageLanguage =
+    typeof window !== "undefined"
+      ? getOptionalString(window.localStorage?.getItem("language") ?? window.localStorage?.getItem("lang"))
+      : undefined;
 
-  const locale = String(localeCandidate ?? "en").toLowerCase();
+  const navigatorLanguage = typeof navigator !== "undefined" ? getOptionalString(navigator.language) : undefined;
+
+  const localeCandidate =
+    getObjectString(app, "locale") ??
+    getObjectString(app, "lang") ??
+    getVaultLocale(app.vault) ??
+    storageLanguage ??
+    navigatorLanguage ??
+    "en";
+
+  const locale = localeCandidate.toLowerCase();
   if (locale.startsWith("zh")) {
     return zhStrings;
   }
   return enStrings;
+}
+
+function getVaultLocale(vault: App["vault"]): string | undefined {
+  const maybeGetConfig = (vault as { getConfig?: (key: string) => unknown }).getConfig;
+  if (typeof maybeGetConfig === "function") {
+    return getOptionalString(maybeGetConfig.call(vault, "locale"));
+  }
+  return undefined;
+}
+
+function getObjectString(source: unknown, key: string): string | undefined {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+  if (!(key in source)) {
+    return undefined;
+  }
+  const value = (source as Record<string, unknown>)[key];
+  return getOptionalString(value);
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
