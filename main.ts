@@ -31,6 +31,8 @@ const COLOR_PRESETS = [
 ];
 
 const DYNAMIC_STYLE_ELEMENT_ID = "obsidian-countdown-dynamic-styles";
+const COUNTDOWN_CONTAINER_CLASS = "obsidian-countdown__container";
+const COLOR_OPTION_CLASS = "obsidian-countdown__color-option";
 
 const DEFAULT_SETTINGS: CountdownPluginSettings = {
   defaultLabel: "Countdown",
@@ -434,7 +436,7 @@ class CountdownView extends MarkdownRenderChild {
   }
 
   private setupDom(root: HTMLElement) {
-    root.addClass("obsidian-countdown__container");
+    root.addClass(COUNTDOWN_CONTAINER_CLASS);
     this.applyColor(this.color);
 
     if (this.context) {
@@ -469,7 +471,7 @@ class CountdownView extends MarkdownRenderChild {
       const palette = popover.createDiv({ cls: "obsidian-countdown__color-options" });
 
       COLOR_PRESETS.forEach((hex) => {
-        const option = palette.createEl("button", { cls: "obsidian-countdown__color-option" });
+        const option = palette.createEl("button", { cls: COLOR_OPTION_CLASS });
         option.setAttr("type", "button");
         const presetColor = normaliseColor(hex);
         const labelColor = presetColor ?? hex;
@@ -562,7 +564,8 @@ class CountdownView extends MarkdownRenderChild {
     if (!this.colorPopover) {
       return;
     }
-    const options = Array.from(this.colorPopover.querySelectorAll<HTMLElement>(".obsidian-countdown__color-option"));
+    const colorOptionSelector = `.${COLOR_OPTION_CLASS}`;
+    const options = Array.from(this.colorPopover.querySelectorAll<HTMLElement>(colorOptionSelector));
     options.forEach((option) => {
       const hex = normaliseColor(option.dataset.countdownColor) ?? "";
       if (hex) {
@@ -789,7 +792,8 @@ function ensureContainerColorStyle(color: string) {
     return;
   }
 
-  styleEl.appendChild(document.createTextNode(`.obsidian-countdown__container[data-countdown-color="${normalised}"]{--countdown-color:${normalised};}`));
+  const selector = `.${COUNTDOWN_CONTAINER_CLASS}[data-countdown-color="${normalised}"]`;
+  styleEl.appendChild(document.createTextNode(`${selector}{--countdown-color:${normalised};}`));
   dynamicColorRules.add(key);
 }
 
@@ -810,7 +814,9 @@ function ensureColorOptionStyle(color: string) {
   }
 
   styleEl.appendChild(
-    document.createTextNode(`.obsidian-countdown__color-option[data-countdown-color="${normalised}"]{--countdown-option-color:${normalised};}`)
+    document.createTextNode(
+      `.${COLOR_OPTION_CLASS}[data-countdown-color="${normalised}"]{--countdown-option-color:${normalised};}`
+    )
   );
   dynamicColorRules.add(key);
 }
